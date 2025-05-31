@@ -18,11 +18,11 @@ func HandleOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the order data
-	if err := model.ValidateOrder(order); err != nil {
-		http.Error(w, "Validation failed: "+err.Error(), http.StatusBadRequest)
-		return
-	}
+	// // Validate the order data
+	// if err := model.ValidateOrder(order); err != nil {
+	// 	http.Error(w, "Validation failed: "+err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
 	// Convert order struct to JSON bytes
 	orderBytes, err := json.Marshal(order)

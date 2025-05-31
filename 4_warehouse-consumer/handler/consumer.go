@@ -7,6 +7,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"time"
 
 	"4_warehouse-consumer/dlq"
 	"4_warehouse-consumer/models"
@@ -15,11 +16,13 @@ import (
 )
 
 var (
-	processedIDs = make(map[string]bool) // for idempotency
+	processedIDs = make(map[string]bool)
 	mutex        = sync.Mutex{}
 )
 
-func HandleOrderMessage(ctx context.Context, m kafka.Message, notifWriter *kafka.Writer, dlqWriter *kafka.Writer) {
+func HandleOrderMessage(ctx context.Context, m kafka.Message, notifWriter *kafka.Writer, dlqWriter *kafka.Writer, latencyWriter *kafka.Writer) {
+	startTime := time.Now()
+
 	var order models.OrderConfirmedEvent
 
 	if err := json.Unmarshal(m.Value, &order); err != nil {
@@ -28,7 +31,6 @@ func HandleOrderMessage(ctx context.Context, m kafka.Message, notifWriter *kafka
 		return
 	}
 
-	// Idempotency check
 	mutex.Lock()
 	if processedIDs[order.ID] {
 		mutex.Unlock()
@@ -71,5 +73,28 @@ func HandleOrderMessage(ctx context.Context, m kafka.Message, notifWriter *kafka
 		dlq.PublishToDeadLetterQueue(ctx, dlqWriter, payload)
 	} else {
 		log.Printf("📤 Notification sent for Order ID: %s\n", order.ID)
+	}
+
+	// 🔹 KPI Latency Tracking
+	latency := time.Since(startTime)
+	kpiEvent := models.KPIEvent{
+		KPIName:    "OrderProcessingLatency",
+		MetricName: "latency_ms",
+		Value:      latency.Milliseconds(),
+		Timestamp:  time.Now().UTC().Format(time.RFC3339),
+	}
+	kpiData, err := json.Marshal(kpiEvent)
+	if err != nil {
+		log.Printf("❌ Failed to marshal KPI event: %v\n", err)
+	} else {
+		err = latencyWriter.WriteMessages(ctx, kafka.Message{
+			Key:   []byte(order.ID),
+			Value: kpiData,
+		})
+		if err != nil {
+			log.Printf("❌ Failed to publish KPI event: %v\n", err)
+		} else {
+			log.Printf("📊 KPI Latency Published: %d ms\n", latency.Milliseconds())
+		}
 	}
 }

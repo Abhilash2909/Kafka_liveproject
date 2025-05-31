@@ -33,9 +33,14 @@ func main() {
 	})
 	defer dlqWriter.Close()
 
+	latencyWriter := kafka.NewWriter(kafka.WriterConfig{
+		Brokers: []string{"localhost:9092"},
+		Topic:   "LatencyKPI",
+	})
+	defer latencyWriter.Close()
+
 	ctx := context.Background()
 
-	// Handle Ctrl+C
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
@@ -53,7 +58,7 @@ func main() {
 				continue
 			}
 
-			handler.HandleOrderMessage(ctx, m, notificationWriter, dlqWriter)
+			handler.HandleOrderMessage(ctx, m, notificationWriter, dlqWriter, latencyWriter)
 		}
 	}
 }

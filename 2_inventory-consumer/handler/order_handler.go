@@ -54,8 +54,8 @@ func HandleOrder(ctx context.Context, msg kafka.Message, writerConfirmed, writer
 	// Step 3: Check for duplicates
 	if processedOrders[order.OrderID] {
 		log.Printf("⚠️ Duplicate order: %s", order.OrderID)
-		sendToDLQ(writerDLQ, msg.Value, "Duplicate order ID")
-		SendKPIEvent(writerKPI, "InventoryError", "error_per_minute", 1)
+		// sendToDLQ(writerDLQ, msg.Value, "Duplicate order ID")
+		// SendKPIEvent(writerKPI, "InventoryError", "error_per_minute", 1)
 		return
 	}
 
